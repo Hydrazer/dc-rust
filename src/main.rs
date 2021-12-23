@@ -1,7 +1,6 @@
 use regex::Regex;
 use std::collections::VecDeque;
 
-
 struct DeskCalc {
   code: String,
   stack: VecDeque<String>,
@@ -9,10 +8,10 @@ struct DeskCalc {
 
 impl DeskCalc {
   fn run(&mut self) {
-    let num_regex = r#"(?P<num>\d*.?\d+|\d+.?\d*)"#;
+    let num_regex = r#"(?P<num>\d*\.?\d+|\d+\.?\d*)"#;
     let comment_regex = r#"(?P<comment>#.*)"#;
     // let string_regex = r#"\[(?P<str>.*)\]"#;
-    let space_regex = r#"\s+"#;
+    let space_regex = r#"(?P<space>\s+)"#;
     let token_regex = Regex::new(
       &vec![
         num_regex,
@@ -20,6 +19,9 @@ impl DeskCalc {
         comment_regex,
         space_regex,
       ]
+      .into_iter()
+      .map(|re| "^".to_string() + re)
+      .collect::<Vec<_>>()
       .join("|"),
     )
     .unwrap();
@@ -29,15 +31,21 @@ impl DeskCalc {
     let mut string_parse_curr = false;
 
     while self.code.len() != 0 {
-      match token_regex.find(&self.code) {
+      match token_regex.captures(&self.code) {
+
         // regular case
         Some(mat) => {
-          self.code = (&self.code[mat.end()..]).to_string();
-        }
+          if let Some(num) = mat.name("num") {
+            self.stack.push_back(num.as_str().to_string());
+          }
 
+          self.code = (&self.code[mat.get(0).unwrap().end()..]).to_string();
+        }
+        
         // edge case for string and commands
         None => {
           let next_char = self.code.chars().next().unwrap();
+          // println!("ch: {}", next_char);
 
           match next_char {
             '[' => {
@@ -54,7 +62,7 @@ impl DeskCalc {
                 match ch {
                   'p' => {
                     // println!("{:#?}", self.stack.front())
-                    match self.stack.front() {
+                    match self.stack.back() {
                       Some(item) => {
                         println!("{}", item)
                       }
@@ -98,7 +106,11 @@ impl DeskCalc {
 
 fn main() {
   // let code = "[chick[wow]en[]][chicken finger[]]p".to_string();
-  let code = "[chick[cie]ew]p".to_string();
+  let code = "32.32
+p
+
+# .32p32 
+           \t\t  p.1.2p[chick[cie]ew]p".to_string();
   let stack = VecDeque::new();
   let mut desk_calc = DeskCalc { code, stack };
 
